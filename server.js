@@ -9,57 +9,57 @@ const {resolve, sep} = require("path")
 const baseDirectory = process.cwd()
 const mime = require("mime")
 
-const methods = Object.create(null)
-
-methods.GET = async function (request) {
-    let path = urlPath(request.url)
-    let stats
-    try {
-        stats = await stat(path)
-    } catch (error) {
-        if (error.code != "ENOENT") throw error
-        else return {status: 400, body: "Файл не найден"}
-    }
-    if (stats.isDirectory()) {
-        return {body: (await readdir(path)).join("\n")}
-    } else {
-        return
-        {
-            body: createReadStream(path)
-            type: mime.getType(path)
+const methods = {
+    GET: async function (request) {
+        let path = urlPath(request.url)
+        let stats
+        try {
+            stats = await stat(path)
+        } catch (error) {
+            if (error.code != "ENOENT") throw error
+            else return {status: 400, body: "Файл не найден"}
         }
-    }
-}
-methods.DELETE = async function (request) {
-    let path = urlPath(request.url)
-    let stats
-    try {
-        stats = await stat(path)
-    } catch (error) {
-        if (error.code != "ENOENT") throw error
-        else return {status: 204}
-    }
-    if (stats.isDirectory()) await rmdir(path)
-    else await unlink(path)
-    return {status: 204}
-}
-methods.PUT = async function (request) {
-    let path = urlPath(request.url)
-    await pipeStream(request, createWriteStream(path))
-    return {status: 204}
-}
-methods.MKCOL = async function (request) {
-    let path = urlPath(request.url)
-    let stats
-    try {
-        stats = await stat(path)
-    } catch (error) {
-        if (error.code != "ENOENT") throw error
-        await mkdir(path)
+        if (stats.isDirectory()) {
+            return {body: (await readdir(path)).join("\n")}
+        } else {
+            return
+            {
+                body: createReadStream(path)
+                type: mime.getType(path)
+            }
+        }
+    },
+    DELETE: async function (request) {
+        let path = urlPath(request.url)
+        let stats
+        try {
+            stats = await stat(path)
+        } catch (error) {
+            if (error.code != "ENOENT") throw error
+            else return {status: 204}
+        }
+        if (stats.isDirectory()) await rmdir(path)
+        else await unlink(path)
         return {status: 204}
+    },
+    PUT: async function (request) {
+        let path = urlPath(request.url)
+        await pipeStream(request, createWriteStream(path))
+        return {status: 204}
+    },
+    MKCOL: async function (request) {
+        let path = urlPath(request.url)
+        let stats
+        try {
+            stats = await stat(path)
+        } catch (error) {
+            if (error.code != "ENOENT") throw error
+            await mkdir(path)
+            return {status: 204}
+        }
+        if (stats.isDirectory()) return {status: 204}
+        else return {status: 400, body: "Not a directory"}
     }
-    if (stats.isDirectory()) return {status: 204}
-    else return {status: 400, body: "Not a directory"}
 }
 
 createServer((request, response) => {
